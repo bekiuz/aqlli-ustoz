@@ -1,0 +1,11 @@
+name = "aqlli-ustoz"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-11-18"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[[kv_namespaces]]
+binding = "HISTORY"
+id = "3ea189bdf52442ab93411904ecdf7fa1"
