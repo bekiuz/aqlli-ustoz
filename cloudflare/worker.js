@@ -119,7 +119,7 @@ async function rateLimit(env, request) {
   const minute = Math.floor(Date.now() / 60000);
   const key = "rate:" + ip + ":" + minute;
   const count = Number(await env.HISTORY.get(key) || "0");
-  if (count >= 8) return false;
+  if (count >= 20) return false;
   await env.HISTORY.put(key, String(count + 1), { expirationTtl: 120 });
   return true;
 }
@@ -253,13 +253,30 @@ async function vocalLabFetch(env, path, options) {
   return response;
 }
 
+async function getVocalLabVoices(env) {
+  const cacheKey = "vocallab:voices:v1";
+  const cached = await env.HISTORY.get(cacheKey, { type: "json" });
+  if (cached && Array.isArray(cached.voices) && cached.voices.length) return cached.voices;
+  const response = await vocalLabFetch(env, "/voices?limit=500");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab xatosi: " + response.status));
+  const voices = Array.isArray(data.voices) ? data.voices : [];
+  await env.HISTORY.put(cacheKey, JSON.stringify({ voices }), { expirationTtl: 86400 });
+  return voices;
+}
+
+function isFemaleVoice(voice) {
+  const metadata = [voice.gender, voice.sex, voice.name, voice.display_name, voice.description, voice.short_description]
+    .concat(Array.isArray(voice.tags) ? voice.tags : [])
+    .concat(Array.isArray(voice.labels) ? voice.labels : [])
+    .join(" ").toLowerCase();
+  return /female|woman|girl|feminine|ayol|женск|qiz/.test(metadata);
+}
+
 async function handleVoiceList(request, env) {
   try {
-    const response = await vocalLabFetch(env, "/voices?limit=500");
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab xatosi: " + response.status));
-    const voices = Array.isArray(data.voices) ? data.voices : [];
-    voices.sort((a, b) => Number(b.type === "clone" || b.type === "designed") - Number(a.type === "clone" || a.type === "designed"));
+    const voices = await getVocalLabVoices(env);
+    voices.sort((a, b) => Number(isFemaleVoice(b)) - Number(isFemaleVoice(a)));
     return json({ ok: true, voices });
   } catch (error) {
     console.error("VocalLab voices:", error);
@@ -271,20 +288,18 @@ async function handleTTS(request, env) {
   let body;
   try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
   const text = String(body.text || "").trim();
-  if (!text || text.length > 2000) return json({ ok: false, error: "Matn 1–2000 belgi bo‘lishi kerak." }, 400);
+  if (!text || text.length > 260) return json({ ok: false, error: "Ovozli javob 260 belgigacha bo‘lishi kerak." }, 400);
   try {
-    const listResponse = await vocalLabFetch(env, "/voices?limit=500");
-    const listData = await listResponse.json().catch(() => ({}));
-    if (!listResponse.ok) throw new Error(listData.error?.message || listData.message || "VocalLab ovozlari olinmadi.");
-    const voices = Array.isArray(listData.voices) ? listData.voices : [];
+    const voices = await getVocalLabVoices(env);
     const wanted = String(body.language || "uz").toLowerCase();
     const matches = voices.filter(v => Array.isArray(v.languages) && v.languages.some(l => String(l).toLowerCase().startsWith(wanted)));
-    const own = matches.find(v => v.type === "clone" || v.type === "designed");
-    const chosen = own || matches[0] || voices.find(v => v.type === "clone" || v.type === "designed") || voices[0];
+    const female = matches.filter(isFemaleVoice);
+    const chosen = female.find(v => v.type === "clone" || v.type === "designed") || female[0] ||
+      voices.find(v => isFemaleVoice(v)) || matches.find(v => v.type === "clone" || v.type === "designed") || matches[0] || voices[0];
     if (!chosen) throw new Error("VocalLab katalogida ovoz topilmadi.");
     const response = await vocalLabFetch(env, "/tts", {
       method: "POST",
-      body: { text, voice: chosen.id, model: "v-flash", format: "MP3", speed: 1 }
+      body: { text, voice: chosen.id, model: "v-lite", format: "MP3", speed: 1 }
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab TTS xatosi: " + response.status));
