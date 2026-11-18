@@ -18,19 +18,46 @@ function json(data, status) {
   });
 }
 
-async function serveApp(env) {
-  const encoded = await env.HISTORY.get(APP_KEY);
-  if (!encoded) return new Response("Platforma fayli topilmadi.", { status: 503 });
-  const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-  // KV stores a gzip-compressed HTML payload. Decompress it inside the
-  // Worker and send normal HTML so browsers never display raw gzip bytes.
-  const compressed = new Blob([bytes]).stream();
-  const decompressed = compressed.pipeThrough(new DecompressionStream("gzip"));
-  const page = await new Response(decompressed).text();
-
+function serveApp() {
+  const page = `<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090b13">
+<title>Aqlli Ustoz</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#090b13;color:#f4f3ff;font:15px system-ui,sans-serif}
+main{max-width:480px;margin:24px;padding:28px;background:#151b2b;border:1px solid #30344b;border-radius:20px;text-align:center}
+h1{font-size:24px;margin:0 0 10px}p{color:#aeb8ca;line-height:1.6}#status{color:#c8bbff}
+</style>
+</head>
+<body>
+<main><h1>✦ Aqlli Ustoz</h1><p id="status">Ta’lim platformasi yuklanmoqda…</p></main>
+<script>
+(async function () {
+  const status = document.getElementById("status");
+  try {
+    const response = await fetch("/api/app-data", { cache: "no-store" });
+    if (!response.ok) throw new Error("Platforma fayli olinmadi (" + response.status + ")");
+    const data = await response.json();
+    if (!data.payload) throw new Error("Platforma fayli topilmadi.");
+    const binary = atob(data.payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const appHtml = await new Response(stream).text();
+    if (!appHtml.includes("<html") || !appHtml.includes("Aqlli Ustoz")) throw new Error("Platforma fayli noto‘g‘ri formatda.");
+    document.open();
+    document.write(appHtml);
+    document.close();
+  } catch (error) {
+    status.textContent = "Yuklash xatosi: " + (error && error.message ? error.message : "noma’lum xato");
+  }
+})();
+</script>
+</body>
+</html>`;
   return new Response(page, {
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -247,7 +274,13 @@ async function processUpdate(update, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/app")) return serveApp(env);
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/app")) return serveApp();
+
+    if (request.method === "GET" && url.pathname === "/api/app-data") {
+      const payload = await env.HISTORY.get(APP_KEY);
+      if (!payload) return json({ ok: false, error: "Platforma fayli topilmadi." }, 503);
+      return json({ ok: true, payload: payload });
+    }
 
     if (request.method === "GET" && url.pathname === "/health") {
       const app = await env.HISTORY.get(APP_KEY);
