@@ -117,6 +117,18 @@ aqlli-ustoz/
 - [ ] Mobil ilova (Flutter)
 
 
+## 🌐 Web platforma (MVP)
+
+Sayt: https://aqlli-ustoz.bekiuz67.workers.dev/app
+
+- Dashboard va profil
+- IELTS Listening, Reading, Writing, Speaking mashqlari
+- 12 savolli mini diagnostik mock
+- Writing va Speaking uchun AI feedback
+- Lug‘at kartalari, kunlik reja va progress
+- AI Ustoz va Telegram Mini App integratsiyasi
+
+Eslatma: IELTS mashqlari hozircha MVP namunalaridir, rasmiy testlar banki emas. AI band bahosi norasmiy. Premium/Pro narxlari sinov taklifi; to‘lov provayderi ulanmagan va hozircha pul olinmaydi.
 ## ☁️ Cloudflare'da 24/7 webhook rejimi
 
 Tavsiya etilgan deploy varianti — Cloudflare Workers. Bu versiya polling emas, Telegram webhook bilan ishlaydi.
