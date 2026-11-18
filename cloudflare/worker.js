@@ -36,7 +36,9 @@ async function telegram(env, method, payload) {
 
 async function sendText(env, chatId, text) {
   const safeText = String(text || "Kechirasiz, javob tayyorlay olmadim.").trim();
-  const chunks = safeText.match(/[\s\\S]{1,3900}/g) || ["Javob bo‘sh qaytdi."];
+  const chunks = [];
+  for (let i = 0; i < safeText.length; i += 3900) chunks.push(safeText.slice(i, i + 3900));
+  if (!chunks.length) chunks.push("Javob bo‘sh qaytdi.");
   for (const chunk of chunks) {
     await telegram(env, "sendMessage", { chat_id: chatId, text: chunk });
   }
