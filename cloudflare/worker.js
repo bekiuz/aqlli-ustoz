@@ -135,11 +135,16 @@ async function handleAI(request, env) {
   let system = SYSTEM_PROMPT;
   let prompt = userText;
   if (kind === "writing") {
-    system = "Sen IELTS Writing bo‘yicha tajribali, adolatli o‘quv yordamchisisan. O‘zbek tilida fikr bildir. IELTS Writing mezonlari: Task Response, Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy. Har birini alohida tahlil qil; kuchli tomonlar, 3 ta aniq tuzatish, namunaviy yaxshilangan jumlalar va mashq tavsiyasi ber. Agar matn yetarli bo‘lmasa buni ayt. Band taxmini faqat taxminiy va norasmiy ekanini aniq yoz; rasmiy baholashni da’vo qilma. Faqat berilgan esse matniga tayan.";
-    prompt = "IELTS Writing Task 2: Some people believe that students should study online, while others think classroom learning is better. Discuss both views and give your opinion.\n\nStudent essay:\n" + userText;
+    const taskType = String(body.taskType || "task2");
+    system = "Sen IELTS Writing bo‘yicha sinchkov, adolatli o‘quv murabbiyisan. O‘zbek tilida javob ber. Har bir mezonni alohida bahola: Task Achievement (Task 1) yoki Task Response (Task 2), Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy. Har biriga ehtiyotkor taxminiy band diapazoni va sabab yoz. Keyin umumiy taxminiy diapazon, 3 ta ustuvor xato, matndan qisqa misollar bilan tuzatishlar, yaxshilangan namunaviy jumlalar va keyingi mashqni ber. Faqat ko‘rinib turgan matnni bahola; grafik yoki rasm berilmagan bo‘lsa, u haqda ma’lumot to‘qima. Bu rasmiy IELTS bahosi emasligini aniq ay.";
+    if (taskType === "task1") {
+      prompt = "IELTS Academic Writing Task 1. Data: bus travel 45% in 2010 and 35% in 2020; walking 30% in 2010 and 40% in 2020; car travel 25% in both years.\nSummarise the main features and make comparisons.\n\nStudent report:\n" + userText;
+    } else {
+      prompt = "IELTS Writing Task 2: Some people believe that students should study online, while others think classroom learning is better. Discuss both views and give your opinion.\n\nStudent essay:\n" + userText;
+    }
   } else if (kind === "speaking") {
-    system = "Sen IELTS Speaking bo‘yicha o‘quv yordamchisisan. O‘zbek tilida feedback ber. Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy mezonlarini transkript asosida ehtiyotkorlik bilan tahlil qil. Pronunciationni transkriptdan ishonchli baholab bo‘lmasligini ayt va unga ball qo‘yma. Taxminiy band diapazoni berish mumkin, lekin bu norasmiy. Javobni qanday yaxshilash, tabiiy iboralar va qayta mashq uchun 2 savol taklif qil.";
-    prompt = "Speaking Part 2: Describe a skill you would like to learn in the future. Student speech transcript:\n" + userText;
+    system = "Sen IELTS Speaking bo‘yicha o‘quv murabbiyisan. O‘zbek tilida feedback ber. Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy mezonlarini transkript asosida tahlil qil. Transkriptdan talaffuz, urg‘u yoki ravonlik tezligini ishonchli o‘lchab bo‘lmasligini ayt; Pronunciation uchun ball qo‘yma. Umumiy band faqat ehtiyotkor, norasmiy diapazon bo‘lsin. Kuchli tomonlar, 3 ta aniq yaxshilash nuqtasi, tabiiy iboralar va 2 ta keyingi mashq savolini ber.";
+    prompt = "Speaking Part 2: Describe a skill you would like to learn in the future. Say what it is, why you want to learn it and how it could help you. Student speech transcript:\n" + userText;
   } else if (kind !== "tutor") {
     return json({ ok: false, error: "Noma’lum AI rejimi." }, 400);
   }
