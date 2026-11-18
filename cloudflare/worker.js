@@ -239,30 +239,28 @@ async function processUpdate(update, env) {
   }
 }
 
-async function vocalLabRequest(env, path, options) {
+async function voiceLabFetch(env, path, options) {
   if (!env.VOICELAB_API_KEY) throw new Error("VOICELAB_API_KEY sozlanmagan.");
-  const response = await fetch("https://api.vocallab.ai/api/v1" + path, {
+  const response = await fetch("https://api.voicelab.uz/v1" + path, {
     method: (options && options.method) || "GET",
     headers: {
-      "authorization": "Bearer " + env.VOICELAB_API_KEY,
-      "content-type": "application/json"
+      "Authorization": "Bearer " + env.VOICELAB_API_KEY,
+      "Content-Type": "application/json",
+      ...(options && options.headers ? options.headers : {})
     },
     body: options && options.body ? JSON.stringify(options.body) : undefined
   });
-  const data = await response.json().catch(function () { return {}; });
-  if (!response.ok) {
-    const detail = data && data.error && data.error.message;
-    throw new Error(detail || ("VocalLab API xatosi: " + response.status));
-  }
-  return data;
+  return response;
 }
 
 async function handleVoiceList(env) {
   try {
-    const data = await vocalLabRequest(env, "/voices");
-    return json({ ok: true, voices: Array.isArray(data.data) ? data.data : (Array.isArray(data.voices) ? data.voices : []) });
+    const response = await voiceLabFetch(env, "/voices?language=uz");
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || data.error?.message || ("VoiceLab xatosi: " + response.status));
+    return json({ ok: true, voices: Array.isArray(data.data) ? data.data : [], language: "uz" });
   } catch (error) {
-    console.error("VocalLab voices:", error);
+    console.error("VoiceLab voices:", error);
     return json({ ok: false, error: error.message }, 502);
   }
 }
@@ -272,21 +270,29 @@ async function handleTTS(request, env) {
   try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
   const text = String(body.text || "").trim();
   const voice = String(body.voice || "").trim();
-  if (!text || text.length > 2000) return json({ ok: false, error: "Matn 1–2000 belgi bo‘lishi kerak." }, 400);
-  if (!voice || voice.length > 180) return json({ ok: false, error: "Ovoz tanlanmagan." }, 400);
+  const language = String(body.language || "uz").trim();
+  if (!text || text.length > 5000) return json({ ok: false, error: "Matn 1–5000 belgi bo‘lishi kerak." }, 400);
+  if (!voice) return json({ ok: false, error: "Ovoz tanlanmagan." }, 400);
   try {
-    const data = await vocalLabRequest(env, "/tts", {
+    const response = await voiceLabFetch(env, "/tts", {
       method: "POST",
-      body: { text: text, voice: voice, model: "v-flash", format: "MP3" }
+      headers: { "Idempotency-Key": "aqlli-ustoz-" + crypto.randomUUID() },
+      body: { text, language, voice_id: voice, speed: 1 }
     });
-    return json({
-      ok: true,
-      audio_base64: data.audio_base64 || null,
-      stream_url: data.stream_url || null,
-      points_used: data.points_used || 0
-    });
+    if (response.status === 202) {
+      const pending = await response.json();
+      return json({ ok: false, error: "Ovoz tayyorlanmoqda. Birozdan keyin qayta urinib ko‘ring.", generation_id: pending.id }, 202);
+    }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || data.error?.message || ("VoiceLab TTS xatosi: " + response.status));
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return json({ ok: true, audio_base64: btoa(binary), points_used: Number(response.headers.get("X-VoiceLab-Characters-Used") || 0) });
   } catch (error) {
-    console.error("VocalLab TTS:", error);
+    console.error("VoiceLab TTS:", error);
     return json({ ok: false, error: error.message }, 502);
   }
 }
