@@ -116,6 +116,28 @@ aqlli-ustoz/
 - [ ] Ota-ona paneli
 - [ ] Mobil ilova (Flutter)
 
+
+## ☁️ Cloudflare'da 24/7 webhook rejimi
+
+Tavsiya etilgan deploy varianti — Cloudflare Workers. Bu versiya polling emas, Telegram webhook bilan ishlaydi.
+
+- AI: Cloudflare Workers AI, model `@cf/google/gemma-4-26b-a4b-it`
+- Suhbat tarixi: Cloudflare KV (`HISTORY`), 30 kun saqlanadi
+- Bot buyruqlari: `/start`, `/help`, `/clear`
+- Sirlari: `TELEGRAM_BOT_TOKEN` va `TELEGRAM_WEBHOOK_SECRET` Cloudflare Worker Secrets ichida saqlanadi.
+
+### Deploy
+
+1. Cloudflare'da Worker yarating yoki `aqlli-ustoz` nomli Worker'ni tanlang.
+2. Root'dagi `wrangler.toml` sozlamasini ishlating; KV namespace ID loyiha uchun yaratilgan.
+3. Worker Secrets ichiga `TELEGRAM_BOT_TOKEN` va `TELEGRAM_WEBHOOK_SECRET` qo‘shing.
+4. Worker'ni deploy qiling.
+5. Bir marta `POST /setup` endpointiga `Authorization: Bearer <TELEGRAM_WEBHOOK_SECRET>` headeri bilan so‘rov yuboring.
+6. `GET /health` orqali holatini tekshiring.
+
+> Workers AI bepul rejada kunlik foydalanish limiti bilan ishlaydi. Limit tugasa, AI javoblari keyingi resetgacha to‘xtashi mumkin.
+
+
 ---
 
 ## 📄 Litsenziya
