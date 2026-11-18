@@ -239,9 +239,9 @@ async function processUpdate(update, env) {
   }
 }
 
-async function voiceLabFetch(env, path, options) {
-  if (!env.VOICELAB_API_KEY) throw new Error("VOICELAB_API_KEY sozlanmagan.");
-  const response = await fetch("https://api.voicelab.uz/v1" + path, {
+async function vocalLabFetch(env, path, options) {
+  if (!env.VOICELAB_API_KEY) throw new Error("VOICELAB_API_KEY sozlanmagan. VocalLab kalitini Cloudflare Secrets ichiga qo‘ying.");
+  const response = await fetch("https://api.vocallab.ai/api/v1" + path, {
     method: (options && options.method) || "GET",
     headers: {
       "Authorization": "Bearer " + env.VOICELAB_API_KEY,
@@ -255,45 +255,14 @@ async function voiceLabFetch(env, path, options) {
 
 async function handleVoiceList(request, env) {
   try {
-    const language = new URL(request.url).searchParams.get("language") || "uz";
-    if (!["uz", "en", "ru"].includes(language)) return json({ ok: false, error: "Til qo‘llab-quvvatlanmaydi." }, 400);
-    const response = await voiceLabFetch(env, "/voices?language=" + encodeURIComponent(language));
+    const response = await vocalLabFetch(env, "/voices?limit=500");
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || data.error?.message || ("VoiceLab xatosi: " + response.status));
-    const voices = Array.isArray(data.data) ? data.data : [];
-    voices.sort((a, b) => Number(Boolean(b.can_manage)) - Number(Boolean(a.can_manage)));
-    return json({ ok: true, voices, language });
+    if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab xatosi: " + response.status));
+    const voices = Array.isArray(data.voices) ? data.voices : [];
+    voices.sort((a, b) => Number(b.type === "clone" || b.type === "designed") - Number(a.type === "clone" || a.type === "designed"));
+    return json({ ok: true, voices });
   } catch (error) {
-    console.error("VoiceLab voices:", error);
-    return json({ ok: false, error: error.message }, 502);
-  }
-}
-
-async function handleRealtimeTicket(request, env) {
-  let body;
-  try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
-  const service = String(body.service || "");
-  if (service !== "stt" && service !== "tts") return json({ ok: false, error: "Noto‘g‘ri realtime xizmati." }, 400);
-  try {
-    const response = await voiceLabFetch(env, "/ticket", {
-      method: "POST",
-      body: { transport: "websocket", service: service }
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const code = data.error && data.error.code;
-      let message = data.message || data.error?.message || ("VoiceLab xatosi: " + response.status);
-      if (response.status === 403 || code === "insufficient_scope") {
-        message = service === "stt"
-          ? "API kalitida STT Realtime (stt:realtime) ruxsati yo‘q."
-          : "API kalitida TTS Realtime (tts:realtime) ruxsati yo‘q.";
-      }
-      throw new Error(message);
-    }
-    if (!data.ticket || !data.websocket_url) throw new Error("VoiceLab realtime ticket qaytarmadi.");
-    return json({ ok: true, ticket: data.ticket, websocket_url: data.websocket_url, expires_at: data.expires_at });
-  } catch (error) {
-    console.error("VoiceLab realtime ticket:", error);
+    console.error("VocalLab voices:", error);
     return json({ ok: false, error: error.message }, 502);
   }
 }
@@ -302,30 +271,27 @@ async function handleTTS(request, env) {
   let body;
   try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
   const text = String(body.text || "").trim();
-  const voice = String(body.voice || "").trim();
-  const language = String(body.language || "uz").trim();
-  if (!text || text.length > 5000) return json({ ok: false, error: "Matn 1–5000 belgi bo‘lishi kerak." }, 400);
-  if (!voice) return json({ ok: false, error: "Ovoz tanlanmagan." }, 400);
+  if (!text || text.length > 2000) return json({ ok: false, error: "Matn 1–2000 belgi bo‘lishi kerak." }, 400);
   try {
-    const response = await voiceLabFetch(env, "/tts", {
+    const listResponse = await vocalLabFetch(env, "/voices?limit=500");
+    const listData = await listResponse.json().catch(() => ({}));
+    if (!listResponse.ok) throw new Error(listData.error?.message || listData.message || "VocalLab ovozlari olinmadi.");
+    const voices = Array.isArray(listData.voices) ? listData.voices : [];
+    const wanted = String(body.language || "uz").toLowerCase();
+    const matches = voices.filter(v => Array.isArray(v.languages) && v.languages.some(l => String(l).toLowerCase().startsWith(wanted)));
+    const own = matches.find(v => v.type === "clone" || v.type === "designed");
+    const chosen = own || matches[0] || voices.find(v => v.type === "clone" || v.type === "designed") || voices[0];
+    if (!chosen) throw new Error("VocalLab katalogida ovoz topilmadi.");
+    const response = await vocalLabFetch(env, "/tts", {
       method: "POST",
-      headers: { "Idempotency-Key": "aqlli-ustoz-" + crypto.randomUUID() },
-      body: { text, language, voice_id: voice, speed: 1 }
+      body: { text, voice: chosen.id, model: "v-flash", format: "MP3", speed: 1 }
     });
-    if (response.status === 202) {
-      const pending = await response.json();
-      return json({ ok: false, error: "Ovoz tayyorlanmoqda. Birozdan keyin qayta urinib ko‘ring.", generation_id: pending.id }, 202);
-    }
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || data.error?.message || ("VoiceLab TTS xatosi: " + response.status));
-    }
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    let binary = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return json({ ok: true, audio_base64: btoa(binary), points_used: Number(response.headers.get("X-VoiceLab-Characters-Used") || 0) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab TTS xatosi: " + response.status));
+    if (!data.audio_base64) throw new Error("VocalLab audio qaytarmadi.");
+    return json({ ok: true, audio_base64: data.audio_base64, points_used: data.points_used || 0, voice: chosen.name || chosen.id });
   } catch (error) {
-    console.error("VoiceLab TTS:", error);
+    console.error("VocalLab TTS:", error);
     return json({ ok: false, error: error.message }, 502);
   }
 }
@@ -348,7 +314,7 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/api/voices") return handleVoiceList(request, env);
-    if (request.method === "POST" && url.pathname === "/api/realtime-ticket") return handleRealtimeTicket(request, env);
+    
     if (request.method === "POST" && url.pathname === "/api/tts") return handleTTS(request, env);
     if (request.method === "POST" && url.pathname === "/api/ai") return handleAI(request, env);
     if (request.method === "POST" && url.pathname === "/api/session") return saveProgress(request, env, true);
