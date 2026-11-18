@@ -133,12 +133,17 @@ export default {
       });
     }
 
-    if (request.method === "POST" && url.pathname === "/setup") {
-      const auth = request.headers.get("authorization") || "";
-      if (!env.TELEGRAM_WEBHOOK_SECRET || auth !== `Bearer ${env.TELEGRAM_WEBHOOK_SECRET}`) {
+    if (request.method === "GET" && url.pathname === "/setup") {
+      const key = url.searchParams.get("key") || "";
+      if (!env.SETUP_KEY || key !== env.SETUP_KEY) {
         return json({ ok: false, error: "Ruxsat yo‘q" }, 401);
       }
-      if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: "TELEGRAM_BOT_TOKEN sozlanmagan" }, 503);
+      if (await env.HISTORY.get("setup:done")) {
+        return json({ ok: true, already_configured: true });
+      }
+      if (!env.TELEGRAM_BOT_TOKEN) {
+        return json({ ok: false, error: "TELEGRAM_BOT_TOKEN sozlanmagan" }, 503);
+      }
 
       const webhookUrl = `${url.origin}/telegram/webhook`;
       const result = await telegram(env, "setWebhook", {
@@ -146,6 +151,7 @@ export default {
         secret_token: env.TELEGRAM_WEBHOOK_SECRET,
         allowed_updates: ["message"],
       });
+      await env.HISTORY.put("setup:done", "1", { expirationTtl: HISTORY_TTL });
       return json({ ok: Boolean(result), webhook: webhookUrl });
     }
 
