@@ -24,10 +24,16 @@ async function serveApp(env) {
   const binary = atob(encoded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Response(bytes, {
+
+  // KV stores a gzip-compressed HTML payload. Decompress it inside the
+  // Worker and send normal HTML so browsers never display raw gzip bytes.
+  const compressed = new Blob([bytes]).stream();
+  const decompressed = compressed.pipeThrough(new DecompressionStream("gzip"));
+  const page = await new Response(decompressed).text();
+
+  return new Response(page, {
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "content-encoding": "gzip",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "referrer-policy": "strict-origin-when-cross-origin"
