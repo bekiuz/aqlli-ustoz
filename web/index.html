@@ -37,7 +37,7 @@ main{padding:24px clamp(14px,3vw,42px) 55px;max-width:1450px;width:100%;margin:a
 
 <section class="page" id="page-mock"><div class="eyebrow">TIMED PRACTICE</div><h1>Mini mock imtihon</h1><p class="sub">12 savolli qisqa diagnostik test. Rasmiy IELTS imtihoni emas.</p><div class="grid g3" style="margin:18px 0"><div class="card"><div class="tiny">SAVOLLAR</div><div class="metric"><strong>12</strong></div></div><div class="card"><div class="tiny">VAQT</div><div class="metric"><strong>15 min</strong></div></div><div class="card"><div class="tiny">FORMAT</div><div class="metric"><strong>Mini test</strong></div></div></div><div class="card" id="mockBox"><h2>Sinovga tayyormisiz?</h2><p class="sub">Yakunida to‘g‘ri javoblar foizi chiqadi.</p><button class="btn" id="startMock" style="margin-top:15px">Sinovni boshlash</button></div></section>
 
-<section class="page" id="page-tutor"><div class="eyebrow">AI LEARNING ASSISTANT</div><h1>AI Ustoz</h1><p class="sub">Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.</p><div class="card" style="margin-top:18px"><div class="field"><label>Jonli AI suhbat</label><select class="input" id="voiceLanguage"><option value="auto">Tilni avtomatik aniqlash</option><option value="uz">O‘zbekcha</option><option value="ru">Русский</option><option value="en">English</option></select><span class="tiny" id="voiceStatus">Mikrofon orqali gaplashing. Ovoz real vaqtda VoiceLab STT xizmatiga yuboriladi.</span><div class="section" style="margin:10px 0 0"><button class="btn" id="voiceStart">🎙 Jonli suhbatni boshlash</button><button class="btn line" id="voiceStop" disabled>To‘xtatish</button></div></div><div id="chatLog" style="min-height:220px;max-height:400px;overflow:auto;display:grid;align-content:start;gap:10px;margin-bottom:12px"><div class="notice">Salom! Qaysi mavzuni o‘rganamiz? Masalan: 2x + 5 = 15 tenglamani tushuntir.</div></div><textarea id="tutorInput" style="min-height:90px" placeholder="Savolingizni yozing..."></textarea><div class="section" style="margin-bottom:0"><span class="tiny">AI javoblari ta’limiy yordam uchun.</span><button class="btn" id="askTutor">Yuborish ↗</button></div></div></section>
+<section class="page" id="page-tutor"><div class="eyebrow">AI LEARNING ASSISTANT</div><h1>AI Ustoz</h1><p class="sub">Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.</p><div class="card" style="margin-top:18px"><div class="field"><label>Jonli AI suhbat</label><select class="input" id="voiceLanguage"><option value="auto">Tilni avtomatik aniqlash</option><option value="uz">O‘zbekcha</option><option value="ru">Русский</option><option value="en">English</option></select><span class="tiny" id="voiceStatus">Mikrofon brauzer nutqni matnga aylantirish xizmatidan foydalanadi; AI javobi VocalLab ovozida eshittiriladi.</span><div class="section" style="margin:10px 0 0"><button class="btn" id="voiceStart">🎙 Jonli suhbatni boshlash</button><button class="btn line" id="voiceStop" disabled>To‘xtatish</button></div></div><div id="chatLog" style="min-height:220px;max-height:400px;overflow:auto;display:grid;align-content:start;gap:10px;margin-bottom:12px"><div class="notice">Salom! Qaysi mavzuni o‘rganamiz? Masalan: 2x + 5 = 15 tenglamani tushuntir.</div></div><textarea id="tutorInput" style="min-height:90px" placeholder="Savolingizni yozing..."></textarea><div class="section" style="margin-bottom:0"><span class="tiny">AI javoblari ta’limiy yordam uchun.</span><button class="btn" id="askTutor">Yuborish ↗</button></div></div></section>
 
 <section class="page" id="page-vocab"><div class="eyebrow">VOCABULARY BUILDER</div><h1>Lug‘at kartalari</h1><p class="sub">IELTS uchun muhim inglizcha so‘zlarni o‘rganing.</p><div class="section"><span class="pill" id="wordIndex">1 / 12</span><span class="tiny">Kartani bosing — tarjimasi ochiladi</span></div><div class="flash" id="flash"><div><small id="wordType">ENGLISH WORD</small><br><strong id="word">significant</strong><p class="tiny" id="wordHint">Tarjimani ko‘rish uchun bosing</p></div></div><div class="section" style="justify-content:center"><button class="btn line" id="prevWord">← Oldingi</button><button class="btn alt" id="knownWord">✓ Bilaman</button><button class="btn" id="nextWord">Keyingi →</button></div><div class="card"><div class="tiny">YODLANGAN SO‘ZLAR</div><div class="metric"><strong id="knownCount">0</strong><span class="tiny">ta so‘z</span></div></div></section>
 
@@ -92,122 +92,104 @@ function drawWord(){$("word").textContent=opened?words[wi][1]:words[wi][0];$("wo
 $("flash").onclick=function(){opened=!opened;drawWord()};$("nextWord").onclick=function(){wi=(wi+1)%words.length;opened=false;drawWord()};$("prevWord").onclick=function(){wi=(wi+words.length-1)%words.length;opened=false;drawWord()};$("knownWord").onclick=function(){if(state.words.indexOf(words[wi][0])<0)state.words.push(words[wi][0]);save();$("nextWord").click();toast("So‘z saqlandi")};
 var qs=[["A topic sentence usually…",["Introduces the paragraph’s main idea","Lists all sources","Repeats the title"],0],["She ___ to school every day.",["go","goes","going"],1],["A synonym of rapid is…",["slow","quick","weak"],1],["Which phrase is more formal?",["Kids get stuff","Children receive benefits","Kids have things"],1],["If I had time, I ___ French.",["learn","will learn","would learn"],2],["However shows…",["contrast","addition","time"],0],["___ honest person.",["A","An","The"],1],["Evidence means…",["guess","supporting information","rumour"],1],["Choose the complex sentence.",["I read and slept.","Although it was late, I studied.","I like reading."],1],["Opposite of increase is…",["expand","reduce","improve"],1],["The book ___ in 2020.",["published","was published","has publish"],1],["A conclusion should…",["add unrelated topic","summarise the argument","start a new argument"],1]];
 $("startMock").onclick=function(){var i=0,score=0,left=900,clock=null;function finish(expired){if(clock)clearInterval(clock);var pct=Math.round(score/qs.length*100),band=pct>=90?"7.5":pct>=80?"7.0":pct>=70?"6.5":pct>=60?"6.0":pct>=50?"5.5":"5.0";$("mockBox").innerHTML='<div class="eyebrow">SINOV YAKUNI</div><div class="metric"><strong>'+score+'/'+qs.length+'</strong><span class="pill">'+pct+'%</span></div><p class="sub">'+(expired?"Vaqt tugadi. ":"")+'Taxminiy o‘quv natijasi: '+band+'. Bu 12 savolli diagnostik mini-test, rasmiy IELTS band hisobi emas.</p><button class="btn alt" id="mockAgain">Qayta ishlash</button>';record("reading",score,qs.length,band);$("mockAgain").onclick=function(){$("startMock").click()}}function draw(){var q=qs[i];$("mockBox").innerHTML='<div class="metric"><h2>Mini mock · '+(i+1)+'/12</h2><span class="pill" id="mockClock">15:00</span></div><div class="bar"><span style="width:'+((i+1)/12*100)+'%"></span></div><div class="question"><p>'+q[0]+'</p>'+q[1].map(function(o,j){return '<label class="option"><input type="radio" name="mock" value="'+j+'">'+o+'</label>'}).join("")+'</div><button class="btn" id="mockNext">Keyingi →</button>';$("mockClock").textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");$("mockNext").onclick=function(){var answer=document.querySelector('input[name="mock"]:checked');if(!answer){toast("Javobni tanlang");return}if(Number(answer.value)===q[2])score++;i++;if(i<qs.length)draw();else finish(false)}}draw();clock=setInterval(function(){left--;var el=$("mockClock");if(el)el.textContent=Math.floor(left/60)+":"+String(left%60).padStart(2,"0");if(left<=0)finish(true)},1000)};
-var voiceSession={active:false,stream:null,audioContext:null,processor:null,source:null,ws:null,mutedGain:null,language:"auto",nextPlayTime:0,ttsSocket:null,ttsContext:null};
+var voiceSession={active:false,recognition:null,busy:false,language:"auto",audio:null};
 function setVoiceStatus(text){var node=$("voiceStatus");if(node)node.textContent=text}
-async function getRealtimeTicket(service){
-  var r=await fetch("/api/realtime-ticket",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({service:service})});
-  var d=await r.json().catch(function(){return {}});
-  if(!r.ok||!d.ok)throw new Error(d.error||"Realtime xizmatiga ulanib bo‘lmadi.");
-  return d;
+function selectedSpeechLanguage(){
+  var choice=$("voiceLanguage").value;
+  if(choice==="ru")return "ru-RU";
+  if(choice==="en")return "en-US";
+  if(choice==="uz")return "uz-UZ";
+  var browser=(navigator.language||"uz").toLowerCase();
+  return browser.startsWith("ru")?"ru-RU":browser.startsWith("en")?"en-US":"uz-UZ";
 }
-function makeSocketUrl(data){var u=new URL(data.websocket_url);u.searchParams.set("ticket",data.ticket);return u.toString()}
-function pcm16FromFloat(input,inputRate,targetRate){
-  var ratio=inputRate/targetRate, length=Math.floor(input.length/ratio), out=new Int16Array(length);
-  for(var i=0;i<length;i++){var pos=i*ratio,left=Math.floor(pos),right=Math.min(left+1,input.length-1),frac=pos-left,sample=input[left]*(1-frac)+input[right]*frac;sample=Math.max(-1,Math.min(1,sample));out[i]=sample<0?sample*32768:sample*32767}
-  return out;
+function detectedVoiceLanguage(text){
+  var choice=$("voiceLanguage").value;
+  if(choice!=="auto")return choice;
+  return /[а-яё]/i.test(text)?"ru":/[ўқғҳ]/i.test(text)?"uz":"en";
 }
-async function openSttConnection(){
-  var ticket=await getRealtimeTicket("stt");
-  var ws=new WebSocket(makeSocketUrl(ticket));voiceSession.ws=ws;
+function addChatMessage(text,kind){
+  var log=$("chatLog"),node=document.createElement("div");
+  node.className=kind==="user"?"notice":"result";
+  node.textContent=text;log.appendChild(node);log.scrollTop=log.scrollHeight;return node;
+}
+async function speakVocalLab(text,language){
+  var clean=String(text||"").trim().slice(0,1900);if(!clean)return;
+  setVoiceStatus("VocalLab ovoz tayyorlamoqda…");
+  var response=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:clean,language:language})});
+  var data=await response.json().catch(function(){return {}});
+  if(!response.ok||!data.ok)throw new Error(data.error||"VocalLab ovoz yaratolmadi.");
+  var src=data.audio_base64;
+  if(!/^data:audio\//i.test(src))src="data:audio/mpeg;base64,"+src;
+  if(voiceSession.audio){voiceSession.audio.pause();voiceSession.audio=null}
+  var audio=new Audio(src);voiceSession.audio=audio;
   await new Promise(function(resolve,reject){
-    var timer=setTimeout(function(){reject(new Error("STT ulanishi vaqtida javob bermadi."))},12000);
-    ws.onmessage=function(event){
-      if(typeof event.data!=="string")return;
-      var msg;try{msg=JSON.parse(event.data)}catch(_){return}
-      if(msg.event==="ready"){clearTimeout(timer);ws.send(JSON.stringify({type:"start",language:voiceSession.language,audio_format:"pcm_s16le",sample_rate:16000,channels:1,word_timestamps:false}));resolve()}
-      else if(msg.event==="final"){handleVoiceTranscript(msg.text||"",msg.language||voiceSession.language)}
-      else if(msg.event==="error"){setVoiceStatus(msg.message||"Ovoz tanilmadi.");}
-    };
-    ws.onerror=function(){clearTimeout(timer);reject(new Error("STT WebSocket ulanishi xatosi."))};
-    ws.onclose=function(){if(voiceSession.active)setVoiceStatus("Ovoz ulanishi uzildi. Qayta boshlang.")}
+    audio.onended=resolve;audio.onerror=function(){reject(new Error("Tayyor audio ijro etilmadi."))};
+    audio.play().catch(reject);
   });
 }
-async function beginMicCapture(){
-  voiceSession.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-  var AC=window.AudioContext||window.webkitAudioContext;voiceSession.audioContext=new AC();
-  if(voiceSession.audioContext.state==="suspended")await voiceSession.audioContext.resume();
-  voiceSession.source=voiceSession.audioContext.createMediaStreamSource(voiceSession.stream);
-  voiceSession.processor=voiceSession.audioContext.createScriptProcessor(4096,1,1);
-  voiceSession.mutedGain=voiceSession.audioContext.createGain();voiceSession.mutedGain.gain.value=0;
-  voiceSession.processor.onaudioprocess=function(e){
-    var ws=voiceSession.ws;if(!voiceSession.active||!ws||ws.readyState!==WebSocket.OPEN)return;
-    var pcm=pcm16FromFloat(e.inputBuffer.getChannelData(0),voiceSession.audioContext.sampleRate,16000);
-    if(pcm.length)ws.send(pcm.buffer);
-  };
-  voiceSession.source.connect(voiceSession.processor);voiceSession.processor.connect(voiceSession.mutedGain);voiceSession.mutedGain.connect(voiceSession.audioContext.destination);
+async function processVoiceTurn(text){
+  if(voiceSession.busy)return;
+  var said=String(text||"").trim();if(!said)return;
+  voiceSession.busy=true;
+  var lang=detectedVoiceLanguage(said);
+  addChatMessage(said,"user");
+  var answerNode=addChatMessage("AI javob tayyorlamoqda…","assistant");
+  try{
+    var response=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"tutor",text:said})});
+    var data=await response.json().catch(function(){return {}});
+    if(!response.ok||!data.ok)throw new Error(data.error||"AI javob bera olmadi.");
+    answerNode.textContent=data.answer||"Javob bo‘sh.";
+    state.completed++;save();
+    await speakVocalLab(data.answer||"",lang);
+    setVoiceStatus(voiceSession.active?"Javob tugadi. Davom etish uchun gapiring.":"Suhbat to‘xtatildi.");
+  }catch(error){answerNode.textContent="Xatolik: "+error.message;setVoiceStatus(error.message)}
+  finally{
+    voiceSession.busy=false;
+    if(voiceSession.active&&voiceSession.recognition){
+      try{voiceSession.recognition.start();setVoiceStatus("Tinglayapman…")}
+      catch(_){setVoiceStatus("Mikrofonni qayta boshlash uchun «Jonli suhbatni boshlash»ni bosing.")}
+    }
+  }
 }
-function releaseMic(){
-  try{if(voiceSession.processor)voiceSession.processor.disconnect()}catch(_){}
-  try{if(voiceSession.source)voiceSession.source.disconnect()}catch(_){}
-  try{if(voiceSession.mutedGain)voiceSession.mutedGain.disconnect()}catch(_){}
-  if(voiceSession.stream)voiceSession.stream.getTracks().forEach(function(t){t.stop()});
-  if(voiceSession.audioContext)voiceSession.audioContext.close().catch(function(){});
-  voiceSession.processor=null;voiceSession.source=null;voiceSession.stream=null;voiceSession.audioContext=null;voiceSession.mutedGain=null;
-}
-async function startLiveVoice(){
+function startLiveVoice(){
   if(voiceSession.active)return;
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){setVoiceStatus("Bu brauzer mikrofonni qo‘llamaydi.");return}
-  voiceSession.active=true;voiceSession.language=$("voiceLanguage").value;
+  var Speech=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!Speech){setVoiceStatus("Bu brauzer ovozli matn tanishni qo‘llamaydi. Chrome brauzerida oching yoki savolni yozing.");return}
+  var recognition=new Speech();
+  recognition.lang=selectedSpeechLanguage();recognition.continuous=true;recognition.interimResults=false;
+  recognition.onresult=function(event){
+    var text="";
+    for(var i=event.resultIndex;i<event.results.length;i++)if(event.results[i].isFinal)text+=event.results[i][0].transcript+" ";
+    if(text.trim()){try{recognition.stop()}catch(_){}processVoiceTurn(text)}
+  };
+  recognition.onerror=function(event){
+    if(event.error==="not-allowed"||event.error==="service-not-allowed"){voiceSession.active=false;$("voiceStart").disabled=false;$("voiceStop").disabled=true;setVoiceStatus("Mikrofon ruxsatini brauzer sozlamalaridan yoqing.");}
+    else if(voiceSession.active)setVoiceStatus("Mikrofon xatosi: "+event.error);
+  };
+  recognition.onend=function(){
+    if(voiceSession.active&&!voiceSession.busy){try{recognition.start()}catch(_){}}
+  };
+  voiceSession.recognition=recognition;voiceSession.active=true;voiceSession.language=$("voiceLanguage").value;
   $("voiceStart").disabled=true;$("voiceStop").disabled=false;
-  try{setVoiceStatus("Jonli AI ulanmoqda…");await openSttConnection();await beginMicCapture();setVoiceStatus("Tinglayapman. Gapirib bo‘lgach «To‘xtatish»ni bosing.");}
-  catch(e){voiceSession.active=false;releaseMic();if(voiceSession.ws)voiceSession.ws.close();$("voiceStart").disabled=false;$("voiceStop").disabled=true;setVoiceStatus(e.message)}
+  try{recognition.start();setVoiceStatus("Tinglayapman. Gapiring…")}
+  catch(error){voiceSession.active=false;$("voiceStart").disabled=false;$("voiceStop").disabled=true;setVoiceStatus("Mikrofonni boshlashda xato: "+error.message)}
 }
 function stopLiveVoice(){
-  voiceSession.active=false;releaseMic();
-  var ws=voiceSession.ws;voiceSession.ws=null;
-  if(ws&&ws.readyState===WebSocket.OPEN){try{ws.send(JSON.stringify({type:"commit"}))}catch(_){}}
+  voiceSession.active=false;
+  if(voiceSession.recognition){try{voiceSession.recognition.stop()}catch(_){}}
+  if(voiceSession.audio){voiceSession.audio.pause();voiceSession.audio=null}
   $("voiceStart").disabled=false;$("voiceStop").disabled=true;
   setVoiceStatus("Jonli suhbat to‘xtatildi.");
 }
-async function handleVoiceTranscript(text,detectedLanguage){
-  var said=String(text||"").trim();if(!said)return;
-  var lang=["uz","ru","en"].includes(detectedLanguage)?detectedLanguage:"uz";
-  var log=$("chatLog");log.innerHTML+='<div class="notice" style="justify-self:end;max-width:85%;background:#30294d">'+escape(said)+'</div>';
-  var out=document.createElement("div");out.className="result";out.textContent="AI javob tayyorlamoqda…";log.appendChild(out);log.scrollTop=log.scrollHeight;
-  try{
-    var r=await fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"tutor",text:said})});
-    var d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"AI javob bera olmadi.");
-    out.textContent=d.answer||"Javob bo‘sh.";state.completed++;save();log.scrollTop=log.scrollHeight;
-    await speakRealtime(d.answer||"",lang);
-    if(voiceSession.active){await openSttConnection();await beginMicCapture();setVoiceStatus("Davom etamiz — gapiring.");}
-  }catch(e){setVoiceStatus(e.message);if(voiceSession.active){try{await openSttConnection();await beginMicCapture()}catch(_){voiceSession.active=false;$("voiceStart").disabled=false;$("voiceStop").disabled=true}}}
-}
-async function speakRealtime(text,language){
-  if(!text)return;
-  setVoiceStatus("AI gapiryapti…");
-  var voicesResponse=await fetch("/api/voices?language="+encodeURIComponent(language));
-  var voicesData=await voicesResponse.json();if(!voicesResponse.ok||!voicesData.ok)throw new Error(voicesData.error||"Ovozlar olinmadi.");
-  var voices=voicesData.voices||[];if(!voices.length)throw new Error("Bu tilda VoiceLab ovozi topilmadi.");
-  var chosen=voices.find(function(v){return v.can_manage})||voices[0];
-  var ticket=await getRealtimeTicket("tts"),ws=new WebSocket(makeSocketUrl(ticket));
-  var ctx=voiceSession.ttsContext||(voiceSession.ttsContext=new (window.AudioContext||window.webkitAudioContext)());
-  if(ctx.state==="suspended")await ctx.resume();
-  voiceSession.nextPlayTime=ctx.currentTime;
-  await new Promise(function(resolve,reject){
-    var timer=setTimeout(function(){reject(new Error("TTS ulanishi vaqtida javob bermadi."))},12000);
-    ws.onopen=function(){};
-    ws.onmessage=function(event){
-      if(typeof event.data!=="string"){
-        event.data.arrayBuffer().then(function(buf){
-          var pcm=new Int16Array(buf),floats=new Float32Array(pcm.length);
-          for(var i=0;i<pcm.length;i++)floats[i]=pcm[i]/32768;
-          var audioBuffer=ctx.createBuffer(1,floats.length,24000);audioBuffer.copyToChannel(floats,0);
-          var source=ctx.createBufferSource();source.buffer=audioBuffer;source.connect(ctx.destination);
-          var when=Math.max(ctx.currentTime+0.03,voiceSession.nextPlayTime);source.start(when);voiceSession.nextPlayTime=when+audioBuffer.duration;
-        }).catch(function(){});
-        return;
-      }
-      var msg;try{msg=JSON.parse(event.data)}catch(_){return}
-      if(msg.event==="ready"){clearTimeout(timer);ws.send(JSON.stringify({text:String(text).slice(0,7900),language:language,voice_id:chosen.id,speed:1}));}
-      else if(msg.event==="done"){clearTimeout(timer);ws.close();resolve()}
-      else if(msg.event==="error"){clearTimeout(timer);ws.close();reject(new Error(msg.message||"TTS xatosi."))}
-    };
-    ws.onerror=function(){clearTimeout(timer);reject(new Error("TTS WebSocket xatosi."))};
-  });
-  setVoiceStatus("Javob tugadi.");
-}
 $("voiceStart").onclick=startLiveVoice;$("voiceStop").onclick=stopLiveVoice;
-$("askTutor").onclick=function(){var t=$("tutorInput").value.trim();if(!t)return;$("tutorInput").value="";var log=$("chatLog");log.innerHTML+='<div class="notice" style="justify-self:end;max-width:85%;background:#30294d">'+escape(t)+'</div>';var out=document.createElement("div");out.className="result";out.textContent="Javob tayyorlanmoqda…";log.appendChild(out);fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"tutor",text:t})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||"AI xatosi");return d})}).then(function(d){out.textContent=d.answer||"Javob bo‘sh";state.completed++;save();log.scrollTop=log.scrollHeight}).catch(function(e){out.textContent="AI bilan aloqa xatosi: "+e.message})};
+$("askTutor").onclick=function(){
+  var t=$("tutorInput").value.trim();if(!t)return;$("tutorInput").value="";
+  addChatMessage(t,"user");var out=addChatMessage("Javob tayyorlanmoqda…","assistant");
+  fetch("/api/ai",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({kind:"tutor",text:t})})
+  .then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok)throw new Error(d.error||"AI xatosi");return d})})
+  .then(function(d){out.textContent=d.answer||"Javob bo‘sh";state.completed++;save();$("chatLog").scrollTop=$("chatLog").scrollHeight})
+  .catch(function(e){out.textContent="AI bilan aloqa xatosi: "+e.message});
+};
 $("tutorInput").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("askTutor").click()}});
 $("saveProfile").onclick=function(){state.name=$("profileName").value.trim()||"O‘quvchi";state.target=$("targetBand").value;state.examDate=$("examDate").value;save();updateName();$("profileStatus").textContent="Profil saqlandi";toast("Saqlandi")};
 updateName();renderTasks();renderStats();drawWord();renderSkill();
