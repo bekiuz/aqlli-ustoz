@@ -239,6 +239,58 @@ async function processUpdate(update, env) {
   }
 }
 
+async function vocalLabRequest(env, path, options) {
+  if (!env.VOICELAB_API_KEY) throw new Error("VOICELAB_API_KEY sozlanmagan.");
+  const response = await fetch("https://api.vocallab.ai/api/v1" + path, {
+    method: (options && options.method) || "GET",
+    headers: {
+      "authorization": "Bearer " + env.VOICELAB_API_KEY,
+      "content-type": "application/json"
+    },
+    body: options && options.body ? JSON.stringify(options.body) : undefined
+  });
+  const data = await response.json().catch(function () { return {}; });
+  if (!response.ok) {
+    const detail = data && data.error && data.error.message;
+    throw new Error(detail || ("VocalLab API xatosi: " + response.status));
+  }
+  return data;
+}
+
+async function handleVoiceList(env) {
+  try {
+    const data = await vocalLabRequest(env, "/voices");
+    return json({ ok: true, voices: Array.isArray(data.data) ? data.data : (Array.isArray(data.voices) ? data.voices : []) });
+  } catch (error) {
+    console.error("VocalLab voices:", error);
+    return json({ ok: false, error: error.message }, 502);
+  }
+}
+
+async function handleTTS(request, env) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
+  const text = String(body.text || "").trim();
+  const voice = String(body.voice || "").trim();
+  if (!text || text.length > 2000) return json({ ok: false, error: "Matn 1–2000 belgi bo‘lishi kerak." }, 400);
+  if (!voice || voice.length > 180) return json({ ok: false, error: "Ovoz tanlanmagan." }, 400);
+  try {
+    const data = await vocalLabRequest(env, "/tts", {
+      method: "POST",
+      body: { text: text, voice: voice, model: "v-flash", format: "MP3" }
+    });
+    return json({
+      ok: true,
+      audio_base64: data.audio_base64 || null,
+      stream_url: data.stream_url || null,
+      points_used: data.points_used || 0
+    });
+  } catch (error) {
+    console.error("VocalLab TTS:", error);
+    return json({ ok: false, error: error.message }, 502);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -256,6 +308,8 @@ export default {
       });
     }
 
+    if (request.method === "GET" && url.pathname === "/api/voices") return handleVoiceList(env);
+    if (request.method === "POST" && url.pathname === "/api/tts") return handleTTS(request, env);
     if (request.method === "POST" && url.pathname === "/api/ai") return handleAI(request, env);
     if (request.method === "POST" && url.pathname === "/api/session") return saveProgress(request, env, true);
     if (request.method === "POST" && url.pathname === "/api/progress") return saveProgress(request, env, false);
