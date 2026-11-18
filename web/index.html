@@ -105,7 +105,7 @@ function selectedSpeechLanguage(){
 function detectedVoiceLanguage(text){
   var choice=$("voiceLanguage").value;
   if(choice!=="auto")return choice;
-  return /[а-яё]/i.test(text)?"ru":/[ўқғҳ]/i.test(text)?"uz":"en";
+  return /[а-яё]/i.test(text)?"ru":"uz";
 }
 function addChatMessage(text,kind){
   var log=$("chatLog"),node=document.createElement("div");
