@@ -253,14 +253,47 @@ async function voiceLabFetch(env, path, options) {
   return response;
 }
 
-async function handleVoiceList(env) {
+async function handleVoiceList(request, env) {
   try {
-    const response = await voiceLabFetch(env, "/voices?language=uz");
+    const language = new URL(request.url).searchParams.get("language") || "uz";
+    if (!["uz", "en", "ru"].includes(language)) return json({ ok: false, error: "Til qo‘llab-quvvatlanmaydi." }, 400);
+    const response = await voiceLabFetch(env, "/voices?language=" + encodeURIComponent(language));
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.message || data.error?.message || ("VoiceLab xatosi: " + response.status));
-    return json({ ok: true, voices: Array.isArray(data.data) ? data.data : [], language: "uz" });
+    const voices = Array.isArray(data.data) ? data.data : [];
+    voices.sort((a, b) => Number(Boolean(b.can_manage)) - Number(Boolean(a.can_manage)));
+    return json({ ok: true, voices, language });
   } catch (error) {
     console.error("VoiceLab voices:", error);
+    return json({ ok: false, error: error.message }, 502);
+  }
+}
+
+async function handleRealtimeTicket(request, env) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
+  const service = String(body.service || "");
+  if (service !== "stt" && service !== "tts") return json({ ok: false, error: "Noto‘g‘ri realtime xizmati." }, 400);
+  try {
+    const response = await voiceLabFetch(env, "/ticket", {
+      method: "POST",
+      body: { transport: "websocket", service: service }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const code = data.error && data.error.code;
+      let message = data.message || data.error?.message || ("VoiceLab xatosi: " + response.status);
+      if (response.status === 403 || code === "insufficient_scope") {
+        message = service === "stt"
+          ? "API kalitida STT Realtime (stt:realtime) ruxsati yo‘q."
+          : "API kalitida TTS Realtime (tts:realtime) ruxsati yo‘q.";
+      }
+      throw new Error(message);
+    }
+    if (!data.ticket || !data.websocket_url) throw new Error("VoiceLab realtime ticket qaytarmadi.");
+    return json({ ok: true, ticket: data.ticket, websocket_url: data.websocket_url, expires_at: data.expires_at });
+  } catch (error) {
+    console.error("VoiceLab realtime ticket:", error);
     return json({ ok: false, error: error.message }, 502);
   }
 }
@@ -314,7 +347,8 @@ export default {
       });
     }
 
-    if (request.method === "GET" && url.pathname === "/api/voices") return handleVoiceList(env);
+    if (request.method === "GET" && url.pathname === "/api/voices") return handleVoiceList(request, env);
+    if (request.method === "POST" && url.pathname === "/api/realtime-ticket") return handleRealtimeTicket(request, env);
     if (request.method === "POST" && url.pathname === "/api/tts") return handleTTS(request, env);
     if (request.method === "POST" && url.pathname === "/api/ai") return handleAI(request, env);
     if (request.method === "POST" && url.pathname === "/api/session") return saveProgress(request, env, true);
