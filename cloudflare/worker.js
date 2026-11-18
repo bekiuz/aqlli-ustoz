@@ -36,7 +36,7 @@ async function telegram(env, method, payload) {
 
 async function sendText(env, chatId, text) {
   const safeText = String(text || "Kechirasiz, javob tayyorlay olmadim.").trim();
-  const chunks = safeText.match(/[\\s\\S]{1,3900}/g) || ["Javob bo‘sh qaytdi."];
+  const chunks = safeText.match(/[\s\\S]{1,3900}/g) || ["Javob bo‘sh qaytdi."];
   for (const chunk of chunks) {
     await telegram(env, "sendMessage", { chat_id: chatId, text: chunk });
   }
@@ -91,7 +91,7 @@ async function processUpdate(update, env) {
     return;
   }
 
-  const command = text.split(/\\s+/)[0].split("@")[0].toLowerCase();
+  const command = text.split(/\s+/)[0].split("@")[0].toLowerCase();
   if (command === "/start") {
     await env.HISTORY.delete(`history:${userId}`);
     await sendText(env, chatId,
