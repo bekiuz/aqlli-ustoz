@@ -113,7 +113,7 @@ function addChatMessage(text,kind){
   node.textContent=text;log.appendChild(node);log.scrollTop=log.scrollHeight;return node;
 }
 async function speakVocalLab(text,language){
-  var clean=String(text||"").trim();if(!clean)return;if(clean.length>250){var cut=clean.slice(0,250);var stop=Math.max(cut.lastIndexOf(". "),cut.lastIndexOf("! "),cut.lastIndexOf("? "));clean=(stop>100?cut.slice(0,stop+1):cut.slice(0,cut.lastIndexOf(" ")))+" Davomini ekranda o‘qishingiz mumkin.";}
+  var clean=String(text||"").trim().slice(0,1900);if(!clean)return;
   setVoiceStatus("AI ovozli javob tayyorlamoqda…");
   var response=await fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:clean,language:language})});
   var data=await response.json().catch(function(){return {}});
