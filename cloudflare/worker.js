@@ -288,18 +288,19 @@ async function handleTTS(request, env) {
   let body;
   try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
   const text = String(body.text || "").trim();
-  if (!text || text.length > 260) return json({ ok: false, error: "Ovozli javob 260 belgigacha bo‘lishi kerak." }, 400);
+  if (!text || text.length > 2000) return json({ ok: false, error: "Ovozli matn 2000 belgidan oshmasligi kerak." }, 400);
   try {
     const voices = await getVocalLabVoices(env);
     const wanted = String(body.language || "uz").toLowerCase();
     const matches = voices.filter(v => Array.isArray(v.languages) && v.languages.some(l => String(l).toLowerCase().startsWith(wanted)));
     const female = matches.filter(isFemaleVoice);
     const chosen = female.find(v => v.type === "clone" || v.type === "designed") || female[0] ||
-      voices.find(v => isFemaleVoice(v)) || matches.find(v => v.type === "clone" || v.type === "designed") || matches[0] || voices[0];
+      matches.find(v => v.type === "clone" || v.type === "designed") || matches[0];
+    if (!chosen) throw new Error("Bu tilda mos ovoz topilmadi. Ovoz sozlamasida boshqa tilni tanlang.");
     if (!chosen) throw new Error("VocalLab katalogida ovoz topilmadi.");
     const response = await vocalLabFetch(env, "/tts", {
       method: "POST",
-      body: { text, voice: chosen.id, model: "v-lite", format: "MP3", speed: 1 }
+      body: { text, voice: chosen.id, model: wanted === "uz" ? "v-flash" : "v-lite", format: "MP3", speed: 0.96 }
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error?.message || data.message || ("VocalLab TTS xatosi: " + response.status));
