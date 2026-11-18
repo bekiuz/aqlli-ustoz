@@ -95,12 +95,12 @@ async function processUpdate(update, env) {
   if (command === "/start") {
     await env.HISTORY.delete(`history:${userId}`);
     await sendText(env, chatId,
-      "Assalomu alaykum! 👋\\n\\nMen Aqlli Ustozman — o‘zbek tilidagi AI o‘qituvchingiz.\\n\\n📚 Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.\\n\\nBuyruqlar:\\n/clear — suhbat xotirasini tozalash\\n/help — yordam"
+      "Assalomu alaykum! 👋\n\nMen Aqlli Ustozman — o‘zbek tilidagi AI o‘qituvchingiz.\n\n📚 Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.\n\nBuyruqlar:\n/clear — suhbat xotirasini tozalash\n/help — yordam"
     );
     return;
   }
   if (command === "/help") {
-    await sendText(env, chatId, "Savolingizni oddiy matn ko‘rinishida yuboring. Misol: “2x + 5 = 15 tenglamani tushuntirib yech”.\\n\\n/clear — suhbat tarixini tozalash");
+    await sendText(env, chatId, "Savolingizni oddiy matn ko‘rinishida yuboring. Misol: “2x + 5 = 15 tenglamani tushuntirib yech”.\n\n/clear — suhbat tarixini tozalash");
     return;
   }
   if (command === "/clear") {
