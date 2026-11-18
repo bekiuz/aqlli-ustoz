@@ -130,9 +130,9 @@ Tavsiya etilgan deploy varianti — Cloudflare Workers. Bu versiya polling emas,
 
 1. Cloudflare'da Worker yarating yoki `aqlli-ustoz` nomli Worker'ni tanlang.
 2. Root'dagi `wrangler.toml` sozlamasini ishlating; KV namespace ID loyiha uchun yaratilgan.
-3. Worker Secrets ichiga `TELEGRAM_BOT_TOKEN` va `TELEGRAM_WEBHOOK_SECRET` qo‘shing.
+3. Worker Secrets ichiga `TELEGRAM_BOT_TOKEN` va `TELEGRAM_WEBHOOK_SECRET` qo‘shing. `SETUP_KEY` ham bir martalik webhook sozlash uchun kerak.
 4. Worker'ni deploy qiling.
-5. Bir marta `POST /setup` endpointiga `Authorization: Bearer <TELEGRAM_WEBHOOK_SECRET>` headeri bilan so‘rov yuboring.
+5. `GET /setup?key=<SETUP_KEY>` manzilini bir marta ochib Telegram webhook'ni ulang.
 6. `GET /health` orqali holatini tekshiring.
 
 > Workers AI bepul rejada kunlik foydalanish limiti bilan ishlaydi. Limit tugasa, AI javoblari keyingi resetgacha to‘xtashi mumkin.
