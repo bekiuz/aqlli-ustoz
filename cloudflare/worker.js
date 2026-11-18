@@ -39,7 +39,7 @@ h1{font-size:24px;margin:0 0 10px}p{color:#aeb8ca;line-height:1.6}#status{color:
 (async function () {
   const status = document.getElementById("status");
   try {
-    const encoded = ${JSON.stringify(payload)};
+    const encoded = ${JSON.stringify(APP_PAYLOAD)};
     const binary = atob(encoded);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
