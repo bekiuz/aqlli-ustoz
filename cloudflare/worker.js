@@ -1,90 +1,207 @@
 const MODEL = "@cf/google/gemma-4-26b-a4b-it";
 const HISTORY_TTL = 60 * 60 * 24 * 30;
-const MAX_TURNS = 8;
-const SYSTEM_PROMPT = `Sen Aqlli Ustoz — O‘zbekiston o‘quvchilari va abituriyentlari uchun sabrli, professional AI o‘qituvchisan.
+const APP_KEY = "web:app:gzip:b64";
+const APP_URL = "https://aqlli-ustoz.bekiuz67.workers.dev/app";
 
-QOIDALAR:
-- Asosan o‘zbek tilida javob ber; foydalanuvchi boshqa tilni so‘rasa, o‘sha tilda javob ber.
-- Sodda, tushunarli va bosqichma-bosqich tushuntir.
-- Xatolarni muloyim tuzat, hech qachon kamsitma.
-- Matematika, fizika, kimyo, biologiya, ingliz tili, tarix, ona tili va dasturlashda yordam ber.
-- Misollar bilan tushuntir. Hisob-kitoblarda natijani tekshir.
-- Bilmagan narsangni to‘qib chiqarmagin; noaniqlikni ochiq ayt.
-- Nazorat yoki imtihonda tayyor javobni ko‘chirishga emas, mavzuni tushunishga yordam ber.
-- Javoblarni ixcham, lekin yetarlicha tushunarli yoz.
-`;
+const SYSTEM_PROMPT = [
+  "Sen Aqlli Ustoz — O‘zbekiston o‘quvchilari va abituriyentlari uchun sabrli, professional AI o‘qituvchisan.",
+  "Asosan o‘zbek tilida, sodda, aniq va bosqichma-bosqich tushuntir. Foydalanuvchi boshqa tilni so‘rasa, o‘sha tilda javob ber.",
+  "Matematika, fizika, kimyo, biologiya, ingliz tili, IELTS, tarix, ona tili va dasturlashda yordam ber.",
+  "Xatolarni muloyim tuzat. Misollar bilan tushuntir. Hisob-kitoblarni tekshir. Bilmaganingni to‘qima.",
+  "Javobni kerakli darajada ixcham yoz, keraksiz uzun kirishlardan qoch."
+].join("\n");
 
-function json(data, status = 200) {
+function json(data, status) {
   return new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    status: status || 200,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
+  });
+}
+
+async function serveApp(env) {
+  const encoded = await env.HISTORY.get(APP_KEY);
+  if (!encoded) return new Response("Platforma fayli topilmadi.", { status: 503 });
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Response(bytes, {
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "content-encoding": "gzip",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin"
+    }
   });
 }
 
 async function telegram(env, method, payload) {
-  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
+  const response = await fetch("https://api.telegram.org/bot" + env.TELEGRAM_BOT_TOKEN + "/" + method, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload)
   });
   const data = await response.json();
-  if (!response.ok || !data.ok) {
-    throw new Error(data.description || `Telegram API ${response.status}`);
-  }
+  if (!response.ok || !data.ok) throw new Error(data.description || "Telegram API xatosi");
   return data.result;
 }
 
-async function sendText(env, chatId, text) {
+async function sendText(env, chatId, text, extra) {
   const safeText = String(text || "Kechirasiz, javob tayyorlay olmadim.").trim();
   const chunks = [];
   for (let i = 0; i < safeText.length; i += 3900) chunks.push(safeText.slice(i, i + 3900));
   if (!chunks.length) chunks.push("Javob bo‘sh qaytdi.");
-  for (const chunk of chunks) {
-    await telegram(env, "sendMessage", { chat_id: chatId, text: chunk });
+  for (let i = 0; i < chunks.length; i++) {
+    const payload = { chat_id: chatId, text: chunks[i] };
+    if (i === 0 && extra) Object.assign(payload, extra);
+    await telegram(env, "sendMessage", payload);
   }
 }
 
-async function answerWithAI(env, userId, userText) {
-  const key = `history:${userId}`;
-  const history = (await env.HISTORY.get(key, { type: "json" })) || [];
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history,
-    { role: "user", content: userText },
-  ];
+function extractAIText(result) {
+  return result && result.choices && result.choices[0] && result.choices[0].message
+    ? result.choices[0].message.content
+    : (result && (result.response || (result.result && result.result.response))) || "";
+}
 
+async function callAI(env, messages, maxTokens) {
   const result = await env.AI.run(MODEL, {
-    messages,
-    max_tokens: 1100,
+    messages: messages,
+    max_tokens: maxTokens || 1100,
     temperature: 0.35,
-    chat_template_kwargs: { enable_thinking: false },
+    chat_template_kwargs: { enable_thinking: false }
   });
-
-  const reply =
-    result?.choices?.[0]?.message?.content ??
-    result?.response ??
-    result?.result?.response;
-
-  if (typeof reply !== "string" || !reply.trim()) {
-    throw new Error("AI modeli bo‘sh javob qaytardi.");
-  }
-
-  const updated = [
-    ...history,
-    { role: "user", content: userText },
-    { role: "assistant", content: reply.trim() },
-  ].slice(-MAX_TURNS * 2);
-
-  await env.HISTORY.put(key, JSON.stringify(updated), {
-    expirationTtl: HISTORY_TTL,
-  });
+  const reply = extractAIText(result);
+  if (typeof reply !== "string" || !reply.trim()) throw new Error("AI modeli bo‘sh javob qaytardi.");
   return reply.trim();
 }
 
-async function processUpdate(update, env) {
-  const message = update?.message;
-  if (!message?.chat?.id || !message?.from?.id) return;
+async function answerWithAI(env, userId, userText) {
+  const key = "history:" + userId;
+  const history = (await env.HISTORY.get(key, { type: "json" })) || [];
+  const messages = [{ role: "system", content: SYSTEM_PROMPT }].concat(history, [{ role: "user", content: userText }]);
+  const reply = await callAI(env, messages, 1100);
+  const updated = history.concat([
+    { role: "user", content: userText },
+    { role: "assistant", content: reply }
+  ]).slice(-16);
+  await env.HISTORY.put(key, JSON.stringify(updated), { expirationTtl: HISTORY_TTL });
+  return reply;
+}
 
+async function verifyTelegramInitData(initData, botToken) {
+  if (!initData || !botToken || initData.length > 4096) return null;
+  const params = new URLSearchParams(initData);
+  const hash = params.get("hash");
+  const authDate = Number(params.get("auth_date"));
+  if (!hash || !Number.isFinite(authDate) || Math.abs(Date.now() / 1000 - authDate) > 86400) return null;
+  params.delete("hash");
+  const entries = [];
+  for (const pair of params.entries()) entries.push(pair);
+  entries.sort((a, b) => a[0].localeCompare(b[0]));
+  const dataCheckString = entries.map(function (pair) { return pair[0] + "=" + pair[1]; }).join("\n");
+  const encoder = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey("raw", encoder.encode("WebAppData"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const secret = await crypto.subtle.sign("HMAC", secretKey, encoder.encode(botToken));
+  const validationKey = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("HMAC", validationKey, encoder.encode(dataCheckString));
+  const hex = Array.from(new Uint8Array(signature)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  if (hex.length !== hash.length) return null;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ hash.charCodeAt(i);
+  if (diff !== 0) return null;
+  try {
+    const user = JSON.parse(params.get("user") || "null");
+    return user && user.id ? user : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function rateLimit(env, request) {
+  const ip = request.headers.get("cf-connecting-ip") || "unknown";
+  const minute = Math.floor(Date.now() / 60000);
+  const key = "rate:" + ip + ":" + minute;
+  const count = Number(await env.HISTORY.get(key) || "0");
+  if (count >= 8) return false;
+  await env.HISTORY.put(key, String(count + 1), { expirationTtl: 120 });
+  return true;
+}
+
+async function handleAI(request, env) {
+  if (!(await rateLimit(env, request))) return json({ ok: false, error: "So‘rov limiti tugadi. Bir daqiqadan keyin qayta urinib ko‘ring." }, 429);
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
+  const kind = String(body.kind || "tutor");
+  const userText = String(body.text || "").trim();
+  if (!userText || userText.length > 7000) return json({ ok: false, error: "Matn bo‘sh yoki juda uzun (maksimum 7000 belgi)." }, 400);
+
+  let system = SYSTEM_PROMPT;
+  let prompt = userText;
+  if (kind === "writing") {
+    system = "Sen IELTS Writing bo‘yicha tajribali, adolatli o‘quv yordamchisisan. O‘zbek tilida fikr bildir. IELTS Writing mezonlari: Task Response, Coherence and Cohesion, Lexical Resource, Grammatical Range and Accuracy. Har birini alohida tahlil qil; kuchli tomonlar, 3 ta aniq tuzatish, namunaviy yaxshilangan jumlalar va mashq tavsiyasi ber. Agar matn yetarli bo‘lmasa buni ayt. Band taxmini faqat taxminiy va norasmiy ekanini aniq yoz; rasmiy baholashni da’vo qilma. Faqat berilgan esse matniga tayan.";
+    prompt = "IELTS Writing Task 2: Some people believe that students should study online, while others think classroom learning is better. Discuss both views and give your opinion.\n\nStudent essay:\n" + userText;
+  } else if (kind === "speaking") {
+    system = "Sen IELTS Speaking bo‘yicha o‘quv yordamchisisan. O‘zbek tilida feedback ber. Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy mezonlarini transkript asosida ehtiyotkorlik bilan tahlil qil. Pronunciationni transkriptdan ishonchli baholab bo‘lmasligini ayt va unga ball qo‘yma. Taxminiy band diapazoni berish mumkin, lekin bu norasmiy. Javobni qanday yaxshilash, tabiiy iboralar va qayta mashq uchun 2 savol taklif qil.";
+    prompt = "Speaking Part 2: Describe a skill you would like to learn in the future. Student speech transcript:\n" + userText;
+  } else if (kind !== "tutor") {
+    return json({ ok: false, error: "Noma’lum AI rejimi." }, 400);
+  }
+
+  try {
+    const answer = await callAI(env, [
+      { role: "system", content: system },
+      { role: "user", content: prompt }
+    ], kind === "tutor" ? 1000 : 1300);
+    return json({ ok: true, answer: answer });
+  } catch (error) {
+    console.error("AI request error:", error);
+    return json({ ok: false, error: "AI hozir javob bera olmadi. Birozdan keyin qayta urinib ko‘ring." }, 503);
+  }
+}
+
+async function saveProgress(request, env, restoreOnly) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json({ ok: false, error: "Noto‘g‘ri JSON." }, 400); }
+  const user = await verifyTelegramInitData(String(body.initData || ""), env.TELEGRAM_BOT_TOKEN);
+  if (!user) return json({ ok: false, error: "Telegram sessiyasi tasdiqlanmadi." }, 401);
+  const key = "student:" + user.id;
+  if (restoreOnly) {
+    const progress = await env.HISTORY.get(key, { type: "json" });
+    return json({
+      ok: true,
+      user: { id: user.id, first_name: user.first_name || "O‘quvchi", username: user.username || null },
+      progress: progress
+    });
+  }
+
+  const p = body.progress;
+  if (!p || typeof p !== "object") return json({ ok: false, error: "Progress noto‘g‘ri." }, 400);
+  const clean = {
+    name: String(p.name || user.first_name || "O‘quvchi").slice(0, 35),
+    target: String(p.target || "7.0").slice(0, 4),
+    examDate: String(p.examDate || "").slice(0, 10),
+    completed: Math.max(0, Math.min(100000, Number(p.completed) || 0)),
+    correct: Math.max(0, Math.min(100000, Number(p.correct) || 0)),
+    total: Math.max(0, Math.min(100000, Number(p.total) || 0)),
+    words: Array.isArray(p.words) ? p.words.slice(0, 200).map(function (x) { return String(x).slice(0, 80); }) : [],
+    tasks: Array.isArray(p.tasks) ? p.tasks.slice(0, 4).map(Boolean) : [],
+    skills: {
+      listening: Math.max(0, Number(p.skills && p.skills.listening) || 0),
+      reading: Math.max(0, Number(p.skills && p.skills.reading) || 0),
+      writing: Math.max(0, Number(p.skills && p.skills.writing) || 0),
+      speaking: Math.max(0, Number(p.skills && p.skills.speaking) || 0)
+    },
+    week: Array.isArray(p.week) ? p.week.slice(0, 7).map(function (x) { return Math.max(0, Number(x) || 0); }) : [0,0,0,0,0,0,0],
+    band: p.band ? String(p.band).slice(0, 4) : null
+  };
+  await env.HISTORY.put(key, JSON.stringify(clean), { expirationTtl: HISTORY_TTL });
+  return json({ ok: true });
+}
+
+async function processUpdate(update, env) {
+  const message = update && update.message;
+  if (!message || !message.chat || !message.chat.id || !message.from || !message.from.id) return;
   const chatId = message.chat.id;
   const userId = message.from.id;
   const text = (message.text || "").trim();
@@ -92,26 +209,25 @@ async function processUpdate(update, env) {
     await sendText(env, chatId, "Hozircha matnli savollarga javob bera olaman. Savolingizni yozib yuboring.");
     return;
   }
-
   const command = text.split(/\s+/)[0].split("@")[0].toLowerCase();
   if (command === "/start") {
-    await env.HISTORY.delete(`history:${userId}`);
+    await env.HISTORY.delete("history:" + userId);
     await sendText(env, chatId,
-      "Assalomu alaykum! 👋\n\nMen Aqlli Ustozman — o‘zbek tilidagi AI o‘qituvchingiz.\n\n📚 Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.\n\nBuyruqlar:\n/clear — suhbat xotirasini tozalash\n/help — yordam"
+      "Assalomu alaykum! 👋\n\nMen Aqlli Ustozman — o‘zbek tilidagi AI o‘qituvchingiz.\n\n📚 Matematika, ingliz tili, fizika, kimyo, biologiya, tarix va dasturlash bo‘yicha savol bering.\n\n🌐 IELTS mashqlari va shaxsiy o‘quv platformasini ham ochishingiz mumkin.\n\nBuyruqlar:\n/clear — suhbat xotirasini tozalash\n/help — yordam",
+      { reply_markup: { inline_keyboard: [[{ text: "🌐 Aqlli Ustoz platformasini ochish", web_app: { url: APP_URL } }]] } }
     );
     return;
   }
   if (command === "/help") {
-    await sendText(env, chatId, "Savolingizni oddiy matn ko‘rinishida yuboring. Misol: “2x + 5 = 15 tenglamani tushuntirib yech”.\n\n/clear — suhbat tarixini tozalash");
+    await sendText(env, chatId, "Savolingizni oddiy matn ko‘rinishida yuboring. Misol: “2x + 5 = 15 tenglamani tushuntirib yech”.\n\n🌐 IELTS platformasi: " + APP_URL + "\n/clear — suhbat tarixini tozalash");
     return;
   }
   if (command === "/clear") {
-    await env.HISTORY.delete(`history:${userId}`);
+    await env.HISTORY.delete("history:" + userId);
     await sendText(env, chatId, "✅ Suhbat xotirasi tozalandi. Yangi mavzudan boshlaymiz!");
     return;
   }
   if (text.startsWith("/")) return;
-
   await telegram(env, "sendChatAction", { chat_id: chatId, action: "typing" });
   try {
     const reply = await answerWithAI(env, userId, text);
@@ -125,50 +241,37 @@ async function processUpdate(update, env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/app")) return serveApp(env);
 
     if (request.method === "GET" && url.pathname === "/health") {
+      const app = await env.HISTORY.get(APP_KEY);
       return json({
         ok: true,
         service: "Aqlli Ustoz",
         model: MODEL,
-        configured: Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.AI && env.HISTORY),
+        web: Boolean(app),
+        configured: Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.AI && env.HISTORY)
       });
     }
 
-    if (request.method === "GET" && url.pathname === "/setup") {
-      const key = url.searchParams.get("key") || "";
-      if (!env.SETUP_KEY || key !== env.SETUP_KEY) {
-        return json({ ok: false, error: "Ruxsat yo‘q" }, 401);
-      }
-      if (await env.HISTORY.get("setup:done")) {
-        return json({ ok: true, already_configured: true });
-      }
-      if (!env.TELEGRAM_BOT_TOKEN) {
-        return json({ ok: false, error: "TELEGRAM_BOT_TOKEN sozlanmagan" }, 503);
-      }
+    if (request.method === "POST" && url.pathname === "/api/ai") return handleAI(request, env);
+    if (request.method === "POST" && url.pathname === "/api/session") return saveProgress(request, env, true);
+    if (request.method === "POST" && url.pathname === "/api/progress") return saveProgress(request, env, false);
 
-      const webhookUrl = `${url.origin}/telegram/webhook`;
-      const result = await telegram(env, "setWebhook", {
-        url: webhookUrl,
-        secret_token: env.TELEGRAM_WEBHOOK_SECRET,
-        allowed_updates: ["message"],
-      });
-      await env.HISTORY.put("setup:done", "1", { expirationTtl: HISTORY_TTL });
-      return json({ ok: Boolean(result), webhook: webhookUrl });
+    if (request.method === "GET" && url.pathname === "/setup") {
+      return json({ ok: false, error: "Webhook allaqachon sozlangan; qayta sozlash yopiq." }, 410);
     }
 
     if (request.method === "POST" && url.pathname === "/telegram/webhook") {
       const secret = request.headers.get("x-telegram-bot-api-secret-token");
-      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) {
-        return json({ ok: false }, 401);
-      }
+      if (!env.TELEGRAM_WEBHOOK_SECRET || secret !== env.TELEGRAM_WEBHOOK_SECRET) return json({ ok: false }, 401);
       const update = await request.json();
-      ctx.waitUntil(processUpdate(update, env).catch((error) => {
+      ctx.waitUntil(processUpdate(update, env).catch(function (error) {
         console.error("Update bajarilmadi:", error);
       }));
       return json({ ok: true });
     }
 
     return json({ ok: false, error: "Not found" }, 404);
-  },
+  }
 };
