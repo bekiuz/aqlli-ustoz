@@ -110,11 +110,11 @@ function playWithVocalLab(text, button){
   var voice=$("voiceSelect").value;
   if(!voice){toast("Avval ovoz tanlang.");return}
   button.disabled=true;button.textContent="Ovoz tayyorlanmoqda…";
-  fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:text.slice(0,2000),voice:voice})})
+  fetch("/api/tts",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:text.slice(0,5000),voice:voice,language:"uz"})})
   .then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok)throw new Error(d.error||"TTS xatosi");return d})})
   .then(function(d){
     var audio;
-    if(d.audio_base64){audio=new Audio("data:audio/mpeg;base64,"+d.audio_base64)}
+    if(d.audio_base64){audio=new Audio("data:audio/wav;base64,"+d.audio_base64)}
     else if(d.stream_url){audio=new Audio(d.stream_url)}
     else throw new Error("Audio fayl qaytmadi.");
     audio.play().catch(function(){toast("Audio ijrosi uchun sahifaga qayta bosing.")});
